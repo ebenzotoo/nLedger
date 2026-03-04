@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:nledger/core/network/email_service.dart';
+import 'package:nledger/core/network/mnotify_service.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
@@ -79,8 +81,49 @@ class InvoiceListScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+                  onTap: () {
+                    // Slide up the action menu
+                    _showInvoiceOptions(context, invoice);
+                  },
+                ),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CreateInvoiceScreen(),
+            ),
+          );
+        },
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _showInvoiceOptions(BuildContext context, invoice) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (bottomSheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                  title: const Text('View & Share PDF'),
                   onTap: () async {
-                    // 1. Get the latest profile and client data
+                    Navigator.pop(bottomSheetContext); // Close bottom sheet
+
                     final profileProvider =
                         Provider.of<BusinessProfileProvider>(
                           context,
@@ -103,13 +146,10 @@ class InvoiceListScreen extends StatelessWidget {
                       return;
                     }
 
-                    // Find the matching client for this invoice
                     final client = clientProvider.clients.firstWhere(
                       (c) => c.id == invoice.clientId,
-                      orElse: () => throw Exception('Client not found'),
                     );
 
-                    // 2. Generate and display the PDF!
                     await PdfInvoiceService.generateAndPrintInvoice(
                       invoice: invoice,
                       client: client,
@@ -117,22 +157,154 @@ class InvoiceListScreen extends StatelessWidget {
                     );
                   },
                 ),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const CreateInvoiceScreen(),
+                ListTile(
+                  leading: const Icon(Icons.sms, color: Colors.blue),
+                  title: const Text('Send SMS Reminder'),
+                  onTap: () async {
+                    Navigator.pop(bottomSheetContext);
+
+                    final clientProvider = Provider.of<ClientProvider>(
+                      context,
+                      listen: false,
+                    );
+                    final client = clientProvider.clients.firstWhere(
+                      (c) => c.id == invoice.clientId,
+                    );
+
+                    // Show loading indicator
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Sending SMS...')),
+                    );
+
+                    final success = await MNotifyService.sendInvoiceSms(
+                      phoneNumber: client.phone,
+                      clientName: client.name,
+                      invoiceNumber: invoice.invoiceNumber,
+                      totalAmount: invoice.total,
+                      dueDate: invoice.dueDate,
+                    );
+
+                    if (success && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('SMS Sent Successfully!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    } else if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Failed to send SMS. Check console or API key.',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.email, color: Colors.orange),
+                  title: const Text('Email Invoice to Client'),
+                  onTap: () async {
+                    Navigator.pop(bottomSheetContext); // Close menu
+
+                    final profileProvider =
+                        Provider.of<BusinessProfileProvider>(
+                          context,
+                          listen: false,
+                        );
+                    final clientProvider = Provider.of<ClientProvider>(
+                      context,
+                      listen: false,
+                    );
+                    final profile = profileProvider.profile;
+
+                    if (profile == null) return;
+
+                    final client = clientProvider.clients.firstWhere(
+                      (c) => c.id == invoice.clientId,
+                    );
+
+                    if (client.email.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Client does not have an email address saved!',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Generating PDF & Sending Email...'),
+                      ),
+                    );
+
+                    // 1. Generate the PDF bytes in the background
+                    final pdfBytes = await PdfInvoiceService.generatePdfBytes(
+                      invoice: invoice,
+                      client: client,
+                      profile: profile,
+                    );
+
+                    // 2. Dispatch the email
+                    final success = await EmailService.sendInvoiceEmail(
+                      clientEmail: client.email,
+                      clientName: client.name,
+                      invoiceNumber: invoice.invoiceNumber,
+                      pdfBytes: pdfBytes,
+                    );
+
+                    if (success && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Email Sent Successfully!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    } else if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Failed to send email. Check console logs.',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                ),
+                if (invoice.status != 'Paid')
+                  ListTile(
+                    leading: const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                    ),
+                    title: const Text('Mark as Paid'),
+                    onTap: () async {
+                      Navigator.pop(bottomSheetContext);
+                      await Provider.of<InvoiceProvider>(
+                        context,
+                        listen: false,
+                      ).markAsPaid(invoice);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Invoice marked as paid.'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    },
+                  ),
+              ],
             ),
-          );
-        },
-        child: const Icon(Icons.add),
-      ),
+          ),
+        );
+      },
     );
   }
 }

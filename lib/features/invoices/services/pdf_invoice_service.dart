@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -8,20 +9,51 @@ import '../../clients/models/invoice_model.dart';
 import '../../settings/models/business_profile.dart';
 
 class PdfInvoiceService {
+  // ---------------------------------------------------------------------------
+  // 1. PREVIEW & PRINT (Used when tapping "View & Share PDF")
+  // ---------------------------------------------------------------------------
   static Future<void> generateAndPrintInvoice({
     required Invoice invoice,
     required Client client,
     required BusinessProfile profile,
   }) async {
+    final pdf = await _buildDocument(invoice, client, profile);
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: '${invoice.invoiceNumber}.pdf',
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 2. BACKGROUND GENERATION (Used when tapping "Email Invoice to Client")
+  // ---------------------------------------------------------------------------
+  static Future<Uint8List> generatePdfBytes({
+    required Invoice invoice,
+    required Client client,
+    required BusinessProfile profile,
+  }) async {
+    final pdf = await _buildDocument(invoice, client, profile);
+
+    // Returns the raw file data without opening the preview screen
+    return pdf.save();
+  }
+
+  // ---------------------------------------------------------------------------
+  // 3. THE SHARED LAYOUT ENGINE (Both methods above call this)
+  // ---------------------------------------------------------------------------
+  static Future<pw.Document> _buildDocument(
+    Invoice invoice,
+    Client client,
+    BusinessProfile profile,
+  ) async {
     final pdf = pw.Document();
 
-    // Fetch the logo if it exists in the profile
     pw.ImageProvider? logoImage;
     if (profile.logoUrl.isNotEmpty) {
       try {
         logoImage = await networkImage(profile.logoUrl);
       } catch (e) {
-        // Fallback if image fails to load
         logoImage = null;
       }
     }
@@ -265,11 +297,7 @@ class PdfInvoiceService {
       ),
     );
 
-    // This opens the native PDF preview screen (iOS/Android) where you can share/save
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: '${invoice.invoiceNumber}.pdf',
-    );
+    return pdf;
   }
 
   // Helper for the top right meta table

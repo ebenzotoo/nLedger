@@ -209,7 +209,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
             // Client Selection Dropdown
             DropdownButtonFormField<Client>(
               decoration: const InputDecoration(labelText: 'Select Client'),
-              value: _selectedClient,
+              initialValue: _selectedClient,
               items: clientProvider.clients.map((client) {
                 return DropdownMenuItem(
                   value: client,

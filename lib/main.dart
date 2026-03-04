@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:nledger/features/dashboard/views/main_dashboard.dart';
 import 'package:nledger/features/invoices/controllers/invoice_provider.dart';
 import 'package:nledger/features/settings/controllers/business_profile_provider.dart';
@@ -11,6 +12,7 @@ import 'features/clients/controllers/client_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
