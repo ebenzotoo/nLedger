@@ -1,11 +1,11 @@
 class InvoiceItem {
   final String id;
   final String description;
-  final String details; // e.g., "Includes wireframes and design..."
+  final String details;
   final int quantity;
   final double rate;
   final double amount;
-  final bool isRecurring; // True for domain/hosting renewals
+  final bool isRecurring;
   final DateTime? renewalDate;
 
   InvoiceItem({

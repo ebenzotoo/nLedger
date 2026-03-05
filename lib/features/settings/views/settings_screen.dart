@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -133,9 +131,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          // FIX: Added 120px bottom padding to clear the nav bar!
+          padding: const EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: 20,
+          ),
           children: [
-            // Logo Upload Section
             Center(
               child: GestureDetector(
                 onTap: _pickAndUploadImage,
@@ -225,11 +228,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _isSaving ? null : _saveProfile,
-              child: _isSaving
-                  ? const CircularProgressIndicator()
-                  : const Text('Save Settings'),
+            // FIX: Made the button taller and more readable
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: _isSaving ? null : _saveProfile,
+                child: _isSaving
+                    ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text(
+                        'Save Settings',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
             ),
           ],
         ),

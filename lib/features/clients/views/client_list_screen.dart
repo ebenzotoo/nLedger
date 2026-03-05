@@ -38,7 +38,12 @@ class ClientListScreen extends StatelessWidget {
 
           // Build the list of clients
           return ListView.builder(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.only(
+              left: 16.0,
+              right: 16.0,
+              top: 16.0,
+              bottom: 100.0,
+            ),
             itemCount: provider.clients.length,
             itemBuilder: (context, index) {
               final client = provider.clients[index];
@@ -75,7 +80,6 @@ class ClientListScreen extends StatelessWidget {
           );
         },
       ),
-      // Floating Action Button to navigate to the Add Client screen
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(

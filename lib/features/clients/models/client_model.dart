@@ -1,6 +1,6 @@
 class Client {
   final String id;
-  final String name; // e.g., Tropicana Plantation
+  final String name;
   final String email;
   final String phone;
   final String address;

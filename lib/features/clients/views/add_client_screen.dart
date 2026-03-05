@@ -15,7 +15,6 @@ class AddClientScreen extends StatefulWidget {
 class _AddClientScreenState extends State<AddClientScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Text Controllers to capture the input
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();

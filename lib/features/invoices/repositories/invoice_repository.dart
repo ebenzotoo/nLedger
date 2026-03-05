@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:nledger/features/clients/models/invoice_model.dart';
+import 'package:nledger/features/invoices/models/invoice_model.dart';
 
 class InvoiceRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -25,7 +25,7 @@ class InvoiceRepository {
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
-              .map((doc) => Invoice.fromMap(doc.data()))
+              .map((doc) => Invoice.fromMap(doc.data(), doc.id))
               .toList();
         });
   }

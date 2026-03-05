@@ -9,7 +9,6 @@ class ClientProvider extends ChangeNotifier {
   bool _isLoading = true;
   String? _errorMessage;
 
-  // Getters for the UI to consume
   List<Client> get clients => _clients;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -25,7 +24,7 @@ class ClientProvider extends ChangeNotifier {
         _clients = clientList;
         _isLoading = false;
         _errorMessage = null;
-        notifyListeners(); // Tells the UI to rebuild with new data
+        notifyListeners();
       },
       onError: (error) {
         _errorMessage = 'Failed to load clients: $error';

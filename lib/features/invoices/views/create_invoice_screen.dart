@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import '../../clients/controllers/client_provider.dart';
 import '../../clients/models/client_model.dart';
 import '../../clients/models/invoice_item.dart';
-import '../../clients/models/invoice_model.dart';
+import '../models/invoice_model.dart';
 import '../controllers/invoice_provider.dart';
 
 class CreateInvoiceScreen extends StatefulWidget {

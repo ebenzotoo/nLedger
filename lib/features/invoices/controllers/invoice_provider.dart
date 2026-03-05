@@ -1,5 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:nledger/features/clients/models/invoice_model.dart';
+import 'package:nledger/features/invoices/models/invoice_model.dart';
 import '../repositories/invoice_repository.dart';
 
 class InvoiceProvider extends ChangeNotifier {
@@ -44,32 +45,28 @@ class InvoiceProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> markAsPaid(Invoice invoice) async {
+  Future<void> recordPayment(Invoice invoice, double paymentAmount) async {
     try {
-      // Create a copy of the invoice with updated status and full amount paid
-      final updatedInvoice = Invoice(
-        id: invoice.id,
-        invoiceNumber: invoice.invoiceNumber,
-        clientId: invoice.clientId,
-        date: invoice.date,
-        dueDate: invoice.dueDate,
-        items: invoice.items,
-        subtotal: invoice.subtotal,
-        nhil: invoice.nhil,
-        getFund: invoice.getFund,
-        vat: invoice.vat,
-        total: invoice.total,
-        amountPaid: invoice.total, // Fully paid
-        status: 'Paid', // Update status
-        notes: invoice.notes,
-      );
+      final newAmountPaid = invoice.amountPaid + paymentAmount;
 
-      await _repository.updateInvoice(updatedInvoice);
-      return true;
+      final finalAmountPaid = newAmountPaid > invoice.total
+          ? invoice.total
+          : newAmountPaid;
+
+      await FirebaseFirestore.instance
+          .collection('invoices')
+          .doc(invoice.id)
+          .update({'amountPaid': finalAmountPaid});
+
+      final index = _invoices.indexWhere((i) => i.id == invoice.id);
+      if (index != -1) {
+        _invoices[index] = invoice.copyWith(amountPaid: finalAmountPaid);
+        notifyListeners();
+      }
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = 'Failed to record payment: $e';
       notifyListeners();
-      return false;
+      throw e;
     }
   }
 }

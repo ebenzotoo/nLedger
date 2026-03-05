@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:nledger/features/dashboard/views/main_dashboard.dart';
 import 'package:nledger/features/invoices/controllers/invoice_provider.dart';
+import 'package:nledger/features/renewals/controllers/renewal_provider.dart';
 import 'package:nledger/features/settings/controllers/business_profile_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -29,6 +30,7 @@ class PenNetworkApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ClientProvider()),
         ChangeNotifierProvider(create: (_) => InvoiceProvider()),
         ChangeNotifierProvider(create: (_) => BusinessProfileProvider()),
+        ChangeNotifierProvider(create: (_) => RenewalProvider()),
       ],
       child: MaterialApp(
         title: 'PEN Network Billing',

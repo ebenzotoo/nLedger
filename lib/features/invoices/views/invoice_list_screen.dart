@@ -279,30 +279,100 @@ class InvoiceListScreen extends StatelessWidget {
                 ),
                 if (invoice.status != 'Paid')
                   ListTile(
-                    leading: const Icon(
-                      Icons.check_circle,
-                      color: Colors.green,
-                    ),
-                    title: const Text('Mark as Paid'),
-                    onTap: () async {
-                      Navigator.pop(bottomSheetContext);
-                      await Provider.of<InvoiceProvider>(
+                    leading: const Icon(Icons.payments, color: Colors.green),
+                    title: const Text('Record Payment'),
+                    onTap: () {
+                      Navigator.pop(bottomSheetContext); // Close bottom sheet
+                      _showPaymentDialog(
                         context,
-                        listen: false,
-                      ).markAsPaid(invoice);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Invoice marked as paid.'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
+                        invoice,
+                      ); // Open the new input dialog
                     },
                   ),
               ],
             ),
           ),
+        );
+      },
+    );
+  }
+
+  void _showPaymentDialog(BuildContext context, invoice) {
+    final TextEditingController amountController = TextEditingController();
+
+    // Pre-fill the box with the remaining balance for convenience
+    amountController.text = invoice.balanceDue.toStringAsFixed(2);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Record Payment'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Total Invoice: GHS ${invoice.total.toStringAsFixed(2)}'),
+              Text(
+                'Remaining Balance: GHS ${invoice.balanceDue.toStringAsFixed(2)}',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: amountController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Amount Paid (GHS)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.money),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final amountString = amountController.text.trim();
+                if (amountString.isEmpty) return;
+
+                final amount = double.tryParse(amountString);
+                if (amount != null && amount > 0) {
+                  Navigator.pop(dialogContext); // Close dialog
+
+                  try {
+                    await Provider.of<InvoiceProvider>(
+                      context,
+                      listen: false,
+                    ).recordPayment(invoice, amount);
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Payment recorded successfully!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Failed to record payment.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
         );
       },
     );

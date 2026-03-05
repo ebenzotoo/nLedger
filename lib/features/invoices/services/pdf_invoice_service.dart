@@ -5,7 +5,7 @@ import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 
 import '../../clients/models/client_model.dart';
-import '../../clients/models/invoice_model.dart';
+import '../models/invoice_model.dart';
 import '../../settings/models/business_profile.dart';
 
 class PdfInvoiceService {
