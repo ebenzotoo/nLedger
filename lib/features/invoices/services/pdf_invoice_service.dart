@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -9,44 +11,88 @@ import '../models/invoice_model.dart';
 import '../../settings/models/business_profile.dart';
 
 class PdfInvoiceService {
-  // ---------------------------------------------------------------------------
-  // 1. PREVIEW & PRINT (Used when tapping "View & Share PDF")
-  // ---------------------------------------------------------------------------
+  // ===========================================================================
+  // INVOICE GENERATION
+  // ===========================================================================
   static Future<void> generateAndPrintInvoice({
     required Invoice invoice,
     required Client client,
     required BusinessProfile profile,
   }) async {
-    final pdf = await _buildDocument(invoice, client, profile);
-
+    final pdf = await _buildDocument(
+      invoice,
+      client,
+      profile,
+      isReceipt: false,
+    );
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
       name: '${invoice.invoiceNumber}.pdf',
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // 2. BACKGROUND GENERATION (Used when tapping "Email Invoice to Client")
-  // ---------------------------------------------------------------------------
   static Future<Uint8List> generatePdfBytes({
     required Invoice invoice,
     required Client client,
     required BusinessProfile profile,
   }) async {
-    final pdf = await _buildDocument(invoice, client, profile);
-
-    // Returns the raw file data without opening the preview screen
+    final pdf = await _buildDocument(
+      invoice,
+      client,
+      profile,
+      isReceipt: false,
+    );
     return pdf.save();
   }
 
-  // ---------------------------------------------------------------------------
-  // 3. THE SHARED LAYOUT ENGINE (Both methods above call this)
-  // ---------------------------------------------------------------------------
+  // ===========================================================================
+  // RECEIPT GENERATION (NEW)
+  // ===========================================================================
+  static Future<void> generateAndPrintReceipt({
+    required Invoice invoice,
+    required Client client,
+    required BusinessProfile profile,
+    required double amountJustPaid,
+  }) async {
+    final pdf = await _buildDocument(
+      invoice,
+      client,
+      profile,
+      isReceipt: true,
+      amountJustPaid: amountJustPaid,
+    );
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'Receipt_${invoice.invoiceNumber}.pdf',
+    );
+  }
+
+  static Future<Uint8List> generateReceiptPdfBytes({
+    required Invoice invoice,
+    required Client client,
+    required BusinessProfile profile,
+    required double amountJustPaid,
+  }) async {
+    final pdf = await _buildDocument(
+      invoice,
+      client,
+      profile,
+      isReceipt: true,
+      amountJustPaid: amountJustPaid,
+    );
+    return pdf.save();
+  }
+
+  // ===========================================================================
+  // THE SHARED LAYOUT ENGINE
+  // ===========================================================================
   static Future<pw.Document> _buildDocument(
     Invoice invoice,
     Client client,
-    BusinessProfile profile,
-  ) async {
+    BusinessProfile profile, {
+    required bool isReceipt,
+    double amountJustPaid = 0.0,
+  }) async {
     final pdf = pw.Document();
 
     pw.ImageProvider? logoImage;
@@ -64,11 +110,33 @@ class PdfInvoiceService {
     );
     final dateFormat = DateFormat('MMM d, yyyy');
 
+    // Calculate the new balance for the receipt
+    final currentBalance = invoice.balanceDue - amountJustPaid;
+    final isFullyPaid = isReceipt && currentBalance <= 0;
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
         build: (context) => [
+          // WATERMARK (Only shows on fully paid receipts)
+          if (isFullyPaid)
+            pw.Positioned(
+              right: 50,
+              top: 150,
+              child: pw.Transform.rotate(
+                angle: -0.5,
+                child: pw.Text(
+                  'FULLY PAID',
+                  style: pw.TextStyle(
+                    color: PdfColors.green100,
+                    fontSize: 80,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+
           // HEADER: Logo & Company Details
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -115,11 +183,11 @@ class PdfInvoiceService {
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: [
                   pw.Text(
-                    'INVOICE',
+                    isReceipt ? 'RECEIPT' : 'INVOICE',
                     style: pw.TextStyle(
                       fontSize: 28,
                       fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.blue900,
+                      color: isReceipt ? PdfColors.green800 : PdfColors.blue900,
                     ),
                   ),
                   pw.Text(
@@ -144,7 +212,7 @@ class PdfInvoiceService {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    'Bill To:',
+                    isReceipt ? 'Received From:' : 'Bill To:',
                     style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColors.grey700,
@@ -177,16 +245,25 @@ class PdfInvoiceService {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    _buildMetaRow('Date:', dateFormat.format(invoice.date)),
-                    _buildMetaRow('Payment Terms:', '50% Upfront'),
                     _buildMetaRow(
-                      'Due Date:',
-                      dateFormat.format(invoice.dueDate),
+                      isReceipt ? 'Payment Date:' : 'Invoice Date:',
+                      dateFormat.format(
+                        isReceipt ? DateTime.now() : invoice.date,
+                      ),
                     ),
+                    if (!isReceipt) ...[
+                      _buildMetaRow('Payment Terms:', '50% Upfront'),
+                      _buildMetaRow(
+                        'Due Date:',
+                        dateFormat.format(invoice.dueDate),
+                      ),
+                    ],
                     pw.Divider(color: PdfColors.grey400),
                     _buildMetaRow(
-                      'Balance Due:',
-                      currencyFormat.format(invoice.balanceDue),
+                      isReceipt ? 'Invoice Total:' : 'Balance Due:',
+                      currencyFormat.format(
+                        isReceipt ? invoice.total : invoice.balanceDue,
+                      ),
                       isBold: true,
                     ),
                   ],
@@ -214,7 +291,9 @@ class PdfInvoiceService {
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.white,
             ),
-            headerDecoration: const pw.BoxDecoration(color: PdfColors.blue900),
+            headerDecoration: pw.BoxDecoration(
+              color: isReceipt ? PdfColors.green800 : PdfColors.blue900,
+            ),
             cellHeight: 30,
             cellAlignments: {
               0: pw.Alignment.centerLeft,
@@ -254,6 +333,27 @@ class PdfInvoiceService {
                       isBold: true,
                       fontSize: 14,
                     ),
+
+                    // IF RECEIPT: SHOW PAYMENT BREAKDOWN
+                    if (isReceipt) ...[
+                      pw.Divider(color: PdfColors.grey400),
+                      _buildTotalRow(
+                        'Amount Paid Now:',
+                        currencyFormat.format(amountJustPaid),
+                        isBold: true,
+                        color: PdfColors.green700,
+                      ),
+                      _buildTotalRow(
+                        'Remaining Balance:',
+                        currencyFormat.format(
+                          currentBalance > 0 ? currentBalance : 0,
+                        ),
+                        isBold: true,
+                        color: currentBalance > 0
+                            ? PdfColors.red700
+                            : PdfColors.grey700,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -261,38 +361,52 @@ class PdfInvoiceService {
           ),
           pw.SizedBox(height: 40),
 
-          // PAYMENT INSTRUCTIONS & NOTES
-          pw.Text(
-            'Payment Instructions:',
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12),
-          ),
-          pw.SizedBox(height: 8),
-          pw.Text(
-            'Bank: ${profile.bankName}',
-            style: const pw.TextStyle(fontSize: 10),
-          ),
-          pw.Text(
-            'Account Name: ${profile.accountName}',
-            style: const pw.TextStyle(fontSize: 10),
-          ),
-          pw.Text(
-            'Account Number: ${profile.accountNumber}',
-            style: const pw.TextStyle(fontSize: 10),
-          ),
-          pw.Text(
-            'Mobile Money (Alt): ${profile.mobileMoneyNumber}',
-            style: const pw.TextStyle(fontSize: 10),
-          ),
-          pw.SizedBox(height: 16),
-          pw.Text(
-            'Terms:',
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12),
-          ),
-          pw.SizedBox(height: 4),
-          pw.Text(
-            profile.paymentTerms,
-            style: const pw.TextStyle(fontSize: 10),
-          ),
+          // PAYMENT INSTRUCTIONS (Only show on Invoices or if they still owe money)
+          if (!isReceipt || currentBalance > 0) ...[
+            pw.Text(
+              'Payment Instructions:',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              'Bank: ${profile.bankName}',
+              style: const pw.TextStyle(fontSize: 10),
+            ),
+            pw.Text(
+              'Account Name: ${profile.accountName}',
+              style: const pw.TextStyle(fontSize: 10),
+            ),
+            pw.Text(
+              'Account Number: ${profile.accountNumber}',
+              style: const pw.TextStyle(fontSize: 10),
+            ),
+            pw.Text(
+              'Mobile Money (Alt): ${profile.mobileMoneyNumber}',
+              style: const pw.TextStyle(fontSize: 10),
+            ),
+            pw.SizedBox(height: 16),
+            pw.Text(
+              'Terms:',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              profile.paymentTerms,
+              style: const pw.TextStyle(fontSize: 10),
+            ),
+          ] else ...[
+            // IF FULLY PAID
+            pw.Center(
+              child: pw.Text(
+                'Thank you for your business!',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.green800,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -337,6 +451,7 @@ class PdfInvoiceService {
     String value, {
     bool isBold = false,
     double fontSize = 10,
+    PdfColor? color,
   }) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 4),
@@ -348,6 +463,7 @@ class PdfInvoiceService {
             style: pw.TextStyle(
               fontSize: fontSize,
               fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+              color: color ?? PdfColors.black,
             ),
           ),
           pw.Text(
@@ -355,6 +471,7 @@ class PdfInvoiceService {
             style: pw.TextStyle(
               fontSize: fontSize,
               fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+              color: color ?? PdfColors.black,
             ),
           ),
         ],

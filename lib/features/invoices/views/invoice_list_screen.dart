@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:nledger/core/network/email_service.dart';
-import 'package:nledger/core/network/mnotify_service.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
@@ -9,6 +7,8 @@ import '../../settings/controllers/business_profile_provider.dart';
 import '../controllers/invoice_provider.dart';
 import '../services/pdf_invoice_service.dart';
 import 'create_invoice_screen.dart';
+import 'package:nledger/core/network/email_service.dart';
+import 'package:nledger/core/network/mnotify_service.dart';
 
 class InvoiceListScreen extends StatelessWidget {
   const InvoiceListScreen({super.key});
@@ -163,13 +163,32 @@ class InvoiceListScreen extends StatelessWidget {
                   onTap: () async {
                     Navigator.pop(bottomSheetContext);
 
+                    // Grab both the client and the business profile
                     final clientProvider = Provider.of<ClientProvider>(
                       context,
                       listen: false,
                     );
+                    final profileProvider =
+                        Provider.of<BusinessProfileProvider>(
+                          context,
+                          listen: false,
+                        );
+
                     final client = clientProvider.clients.firstWhere(
                       (c) => c.id == invoice.clientId,
                     );
+                    final profile = profileProvider.profile;
+
+                    if (profile == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Please set up Company Settings first!',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
 
                     // Show loading indicator
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -179,6 +198,7 @@ class InvoiceListScreen extends StatelessWidget {
                     final success = await MNotifyService.sendInvoiceSms(
                       phoneNumber: client.phone,
                       clientName: client.name,
+                      companyName: profile.companyName, // <-- ADDED THIS
                       invoiceNumber: invoice.invoiceNumber,
                       totalAmount: invoice.total,
                       dueDate: invoice.dueDate,
@@ -252,9 +272,9 @@ class InvoiceListScreen extends StatelessWidget {
 
                     // 2. Dispatch the email
                     final success = await EmailService.sendInvoiceEmail(
-                      clientEmail: client.email,
-                      clientName: client.name,
-                      invoiceNumber: invoice.invoiceNumber,
+                      client: client,
+                      invoice: invoice,
+                      profile: profile,
                       pdfBytes: pdfBytes,
                     );
 
@@ -366,10 +386,10 @@ class InvoiceListScreen extends StatelessWidget {
   }
 
   void _showPaymentDialog(BuildContext context, invoice) {
-    final TextEditingController amountController = TextEditingController();
-
     // Pre-fill the box with the remaining balance for convenience
-    amountController.text = invoice.balanceDue.toStringAsFixed(2);
+    final TextEditingController amountController = TextEditingController(
+      text: invoice.balanceDue.toStringAsFixed(2),
+    );
 
     showDialog(
       context: context,
@@ -412,16 +432,80 @@ class InvoiceListScreen extends StatelessWidget {
                 if (amount != null && amount > 0) {
                   Navigator.pop(dialogContext); // Close dialog
 
+                  // 1. Get required data before async gaps
+                  final profile = Provider.of<BusinessProfileProvider>(
+                    context,
+                    listen: false,
+                  ).profile;
+                  final client = Provider.of<ClientProvider>(
+                    context,
+                    listen: false,
+                  ).clients.firstWhere((c) => c.id == invoice.clientId);
+
+                  if (profile == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please set up Company Settings first!'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  // 2. Show initial loading message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Recording payment & dispatching receipts...',
+                      ),
+                    ),
+                  );
+
                   try {
+                    // 3. Save to database
                     await Provider.of<InvoiceProvider>(
                       context,
                       listen: false,
                     ).recordPayment(invoice, amount);
 
+                    final newBalance = invoice.balanceDue - amount;
+
+                    // 4. Generate Receipt PDF
+                    final pdfBytes =
+                        await PdfInvoiceService.generateReceiptPdfBytes(
+                          invoice: invoice,
+                          client: client,
+                          profile: profile,
+                          amountJustPaid: amount,
+                        );
+
+                    // 5. Send Email
+                    if (client.email.isNotEmpty) {
+                      await EmailService.sendReceiptEmail(
+                        client: client,
+                        invoice: invoice,
+                        profile: profile,
+                        amountPaid: amount,
+                        receiptPdfBytes: pdfBytes,
+                      );
+                    }
+
+                    // 6. Send SMS
+                    if (client.phone.isNotEmpty) {
+                      await MNotifyService.sendReceiptSms(
+                        phoneNumber: client.phone,
+                        clientName: client.name,
+                        companyName: profile.companyName, // <-- ADDED THIS
+                        invoiceNumber: invoice.invoiceNumber,
+                        amountPaid: amount,
+                        balanceDue: newBalance > 0 ? newBalance : 0,
+                      );
+                    }
+
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Payment recorded successfully!'),
+                          content: Text('Payment recorded & receipts sent!'),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -430,8 +514,10 @@ class InvoiceListScreen extends StatelessWidget {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Failed to record payment.'),
-                          backgroundColor: Colors.red,
+                          content: Text(
+                            'Payment saved, but failed to send some receipts.',
+                          ),
+                          backgroundColor: Colors.orange,
                         ),
                       );
                     }
