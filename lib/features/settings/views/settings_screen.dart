@@ -1,9 +1,13 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../auth/controllers/auth_provider.dart';
+import '../../auth/views/login_screen.dart';
 import '../controllers/business_profile_provider.dart';
 import '../models/business_profile.dart';
 
@@ -76,16 +80,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (pickedFile != null) {
       setState(() => _isUploadingImage = true);
-      final provider = Provider.of<BusinessProfileProvider>(
-        context,
-        listen: false,
-      );
-      final url = await provider.uploadLogo(File(pickedFile.path));
 
-      if (url != null) {
-        setState(() => _logoUrl = url);
+      try {
+        final provider = Provider.of<BusinessProfileProvider>(
+          context,
+          listen: false,
+        );
+
+        final url = await provider.uploadLogo(File(pickedFile.path));
+
+        if (!mounted) return;
+        if (url != null) {
+          setState(() => _logoUrl = url);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Logo uploaded successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        // If Firebase rejects it or the network drops, catch the error!
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Upload failed: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isUploadingImage = false);
+        }
       }
-      setState(() => _isUploadingImage = false);
     }
   }
 
@@ -254,7 +283,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
               ),
             ),
-          ],
+
+            // ... (Your existing Save Settings button is right above this)
+            const SizedBox(height: 24),
+            const Divider(),
+            const SizedBox(height: 24),
+
+            // NEW: Log Out Button
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: () async {
+                  final navigator = Navigator.of(context);
+                  await Provider.of<AuthProvider>(
+                    context,
+                    listen: false,
+                  ).logout();
+                  navigator.pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                },
+                icon: const Icon(Icons.logout),
+                label: const Text(
+                  'Log Out',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ], // <-- This is the end of your ListView's children array
         ),
       ),
     );

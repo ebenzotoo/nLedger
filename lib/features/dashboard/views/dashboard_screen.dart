@@ -1,3 +1,5 @@
+// ignore_for_file: unnecessary_to_list_in_spreads
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -15,7 +17,6 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Dashboard'), centerTitle: true),
-      // NEW: Upgraded to Consumer3 to listen to all three data streams!
       body: Consumer3<InvoiceProvider, ClientProvider, RenewalProvider>(
         builder: (context, invoiceProvider, clientProvider, renewalProvider, child) {
           if (invoiceProvider.isLoading ||
@@ -86,7 +87,7 @@ class DashboardScreen extends StatelessWidget {
                 const SizedBox(height: 32),
 
                 // -----------------------------------------------------------------
-                // NEW: UPCOMING RENEWALS SECTION
+                // UPCOMING RENEWALS SECTION
                 // -----------------------------------------------------------------
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -124,25 +125,56 @@ class DashboardScreen extends StatelessWidget {
                     // Check if it's due very soon or overdue!
                     final isOverdue = renewal.dueDate.isBefore(DateTime.now());
 
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8.0),
-                      child: ListTile(
-                        leading: Icon(
-                          Icons.autorenew,
-                          color: isOverdue ? Colors.red : Colors.blue,
+                    // NEW: Swipe to delete wrapper
+                    return Dismissible(
+                      key: Key(renewal.id),
+                      direction: DismissDirection.endToStart, // Swipe left only
+                      background: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        title: Text(
-                          renewal.serviceName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20.0),
+                        margin: const EdgeInsets.only(bottom: 8.0),
+                        child: const Icon(
+                          Icons.delete_forever,
+                          color: Colors.white,
+                          size: 30,
                         ),
-                        subtitle: Text(
-                          '${client.name} • Due: ${DateFormat('MMM dd, yyyy').format(renewal.dueDate)}',
-                        ),
-                        trailing: Text(
-                          currencyFormat.format(renewal.amount),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: isOverdue ? Colors.red : Colors.black,
+                      ),
+                      onDismissed: (direction) {
+                        Provider.of<RenewalProvider>(
+                          context,
+                          listen: false,
+                        ).deleteRenewal(renewal.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Renewal deleted.'),
+                            backgroundColor: Colors.black,
+                          ),
+                        );
+                      },
+                      child: Card(
+                        margin: const EdgeInsets.only(bottom: 8.0),
+                        child: ListTile(
+                          leading: Icon(
+                            Icons.autorenew,
+                            color: isOverdue ? Colors.red : Colors.blue,
+                          ),
+                          title: Text(
+                            renewal.serviceName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            '${client.name} • Due: ${DateFormat('MMM dd, yyyy').format(renewal.dueDate)}',
+                          ),
+                          trailing: Text(
+                            currencyFormat.format(renewal.amount),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isOverdue ? Colors.red : Colors.black,
+                            ),
                           ),
                         ),
                       ),
@@ -305,7 +337,7 @@ class DashboardScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: selectedClientId,
+                      initialValue: selectedClientId,
                       decoration: const InputDecoration(labelText: 'Client'),
                       items: clients.map((c) {
                         return DropdownMenuItem<String>(
@@ -368,8 +400,9 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    if (serviceCtrl.text.isEmpty || amountCtrl.text.isEmpty)
+                    if (serviceCtrl.text.isEmpty || amountCtrl.text.isEmpty) {
                       return;
+                    }
 
                     final amount = double.tryParse(amountCtrl.text);
                     if (amount == null) return;

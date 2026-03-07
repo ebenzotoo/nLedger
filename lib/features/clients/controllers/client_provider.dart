@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:nledger/features/clients/models/client_model.dart';
 import '../repositories/client_repository.dart';
@@ -59,14 +60,20 @@ class ClientProvider extends ChangeNotifier {
   }
 
   // 4. Delete a Client
-  Future<bool> deleteClient(String clientId) async {
+  Future<void> deleteClient(String clientId) async {
     try {
-      await _repository.deleteClient(clientId);
-      return true;
-    } catch (e) {
-      _errorMessage = e.toString();
+      await FirebaseFirestore.instance
+          .collection('clients')
+          .doc(clientId)
+          .delete();
+
+      // Remove from the local list so the UI updates instantly
+      _clients.removeWhere((c) => c.id == clientId);
       notifyListeners();
-      return false;
+    } catch (e) {
+      _errorMessage = 'Failed to delete client: $e';
+      notifyListeners();
+      rethrow;
     }
   }
 }

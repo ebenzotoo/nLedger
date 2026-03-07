@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -23,12 +25,29 @@ class BusinessProfileProvider extends ChangeNotifier {
 
   Future<String?> uploadLogo(File imageFile) async {
     try {
+      // 1. Create the reference
       final storageRef = FirebaseStorage.instance.ref().child(
         'logos/company_logo.png',
       );
-      final uploadTask = await storageRef.putFile(imageFile);
-      return await uploadTask.ref.getDownloadURL();
+
+      // 2. Start upload with a strict 15-second timeout so it CANNOT hang forever
+      final uploadTask = storageRef.putFile(imageFile);
+      final snapshot = await uploadTask.timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw Exception(
+            "Upload timed out! Check your Firebase Storage rules or internet connection.",
+          );
+        },
+      );
+
+      // 3. Return the URL if successful
+      return await snapshot.ref.getDownloadURL();
     } catch (e) {
+      // 4. Catch ANY error, print it to the debug console, and safely return null
+      print('\n--- FIREBASE STORAGE UPLOAD ERROR ---');
+      print(e.toString());
+      print('-------------------------------------\n');
       return null;
     }
   }

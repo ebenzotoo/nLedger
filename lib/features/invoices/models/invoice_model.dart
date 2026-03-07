@@ -63,8 +63,9 @@ class Invoice {
     DateTime parseDate(dynamic dateData) {
       if (dateData == null) return DateTime.now();
       if (dateData is Timestamp) return dateData.toDate();
-      if (dateData is String)
+      if (dateData is String) {
         return DateTime.tryParse(dateData) ?? DateTime.now();
+      }
       return DateTime.now();
     }
 

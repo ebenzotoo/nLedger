@@ -289,6 +289,74 @@ class InvoiceListScreen extends StatelessWidget {
                       ); // Open the new input dialog
                     },
                   ),
+                const Divider(), // Adds a nice line to separate the danger zone
+                ListTile(
+                  leading: const Icon(Icons.delete_forever, color: Colors.red),
+                  title: const Text(
+                    'Delete Invoice',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(bottomSheetContext); // Close the bottom sheet
+
+                    // Show a safety confirmation dialog before actually deleting
+                    showDialog(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        title: const Text('Delete Invoice?'),
+                        content: const Text(
+                          'Are you sure you want to permanently delete this invoice? This cannot be undone.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
+                            onPressed: () async {
+                              Navigator.pop(dialogContext); // Close dialog
+
+                              try {
+                                await Provider.of<InvoiceProvider>(
+                                  context,
+                                  listen: false,
+                                ).deleteInvoice(invoice.id);
+
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Invoice deleted.'),
+                                      backgroundColor: Colors.black,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Failed to delete.'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            child: const Text(
+                              'Delete',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ),

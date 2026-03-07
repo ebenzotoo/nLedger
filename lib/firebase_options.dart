@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -50,19 +47,29 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDz1eK8Dy_FbQxQRu3FNL2i-B_DK_iloo8',
-    appId: '1:416151819515:android:13426dd4d40d02d7f98c5e',
-    messagingSenderId: '416151819515',
-    projectId: 'penflow-bc583',
-    storageBucket: 'penflow-bc583.firebasestorage.app',
+    apiKey: 'AIzaSyAHNNkVHbrA2rGMURMY53VSP27LxEoc9ag',
+    appId: '1:1054817026092:android:f9a30acc6231e080679189',
+    messagingSenderId: '1054817026092',
+    projectId: 'nledger-d66b6',
+    storageBucket: 'nledger-d66b6.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAUhYrhTHgY_clz4TLGtFAFsNJayz0cb30',
-    appId: '1:416151819515:ios:20763faf452e980cf98c5e',
-    messagingSenderId: '416151819515',
-    projectId: 'penflow-bc583',
-    storageBucket: 'penflow-bc583.firebasestorage.app',
+    apiKey: 'AIzaSyCEQdty3rUn4fbX4Z3Z_T7qLPJj6HIOhjM',
+    appId: '1:1054817026092:ios:6bd9fff084d67175679189',
+    messagingSenderId: '1054817026092',
+    projectId: 'nledger-d66b6',
+    storageBucket: 'nledger-d66b6.firebasestorage.app',
     iosBundleId: 'com.example.nledger',
   );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyBjT21EzWDQjRMR2KGdnvS9Qhn-AdqDk0o',
+    appId: '1:1054817026092:web:beb941ca84f85b4d679189',
+    messagingSenderId: '1054817026092',
+    projectId: 'nledger-d66b6',
+    authDomain: 'nledger-d66b6.firebaseapp.com',
+    storageBucket: 'nledger-d66b6.firebasestorage.app',
+  );
+
 }

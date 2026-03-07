@@ -45,7 +45,7 @@ class RenewalProvider with ChangeNotifier {
     } catch (e) {
       _errorMessage = 'Failed to add renewal: $e';
       notifyListeners();
-      throw e;
+      rethrow;
     }
   }
 
@@ -55,7 +55,7 @@ class RenewalProvider with ChangeNotifier {
     } catch (e) {
       _errorMessage = 'Failed to delete renewal: $e';
       notifyListeners();
-      throw e;
+      rethrow;
     }
   }
 }

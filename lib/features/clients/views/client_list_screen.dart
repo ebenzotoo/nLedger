@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../controllers/client_provider.dart';
 import 'add_client_screen.dart';
+import 'client_details_screen.dart';
 
 class ClientListScreen extends StatelessWidget {
   const ClientListScreen({super.key});
@@ -72,7 +73,13 @@ class ClientListScreen extends StatelessWidget {
                   ),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () {
-                    // We will add navigation to a "Client Details" screen later
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ClientDetailsScreen(client: client),
+                      ),
+                    );
                   },
                 ),
               );

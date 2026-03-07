@@ -66,7 +66,25 @@ class InvoiceProvider extends ChangeNotifier {
     } catch (e) {
       _errorMessage = 'Failed to record payment: $e';
       notifyListeners();
-      throw e;
+      rethrow;
+    }
+  }
+
+  // NEW: Delete an invoice from Firebase
+  Future<void> deleteInvoice(String invoiceId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('invoices')
+          .doc(invoiceId)
+          .delete();
+
+      // Update local list
+      _invoices.removeWhere((i) => i.id == invoiceId);
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Failed to delete invoice: $e';
+      notifyListeners();
+      rethrow;
     }
   }
 }
