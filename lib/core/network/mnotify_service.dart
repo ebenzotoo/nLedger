@@ -88,15 +88,15 @@ class MNotifyService {
 
     // Draft a smart message based on the remaining balance
     String message =
-        'Hello $clientName, we have received your payment of $formattedAmount for invoice $invoiceNumber.';
+        'Hello $clientName,\n we have received your payment of $formattedAmount for invoice $invoiceNumber.';
 
     if (balanceDue > 0) {
-      message += ' Your remaining balance is $formattedBalance.';
+      message += '\nYour remaining balance is $formattedBalance.';
     } else {
-      message += ' This invoice is now fully paid.';
+      message += '\nThis invoice is now fully paid.';
     }
     // FIX: Using dynamic company name!
-    message += ' Thank you, $companyName.';
+    message += '\nThank you, \n$companyName.';
 
     final String url =
         'https://api.mnotify.com/api/sms/quick?key=${ApiConstants.mNotifyApiKey}';

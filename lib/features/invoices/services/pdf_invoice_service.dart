@@ -93,7 +93,14 @@ class PdfInvoiceService {
     required bool isReceipt,
     double amountJustPaid = 0.0,
   }) async {
-    final pdf = pw.Document();
+    // 1. Download modern fonts that support all currency symbols
+    final fontRegular = await PdfGoogleFonts.robotoRegular();
+    final fontBold = await PdfGoogleFonts.robotoBold();
+
+    // 2. Apply the fonts to the entire PDF document
+    final pdf = pw.Document(
+      theme: pw.ThemeData.withFont(base: fontRegular, bold: fontBold),
+    );
 
     pw.ImageProvider? logoImage;
     if (profile.logoUrl.isNotEmpty) {
@@ -105,7 +112,7 @@ class PdfInvoiceService {
     }
 
     final currencyFormat = NumberFormat.currency(
-      symbol: 'GHS ',
+      symbol: 'GH¢ ', // Using the official Cedi symbol you wanted!
       decimalDigits: 2,
     );
     final dateFormat = DateFormat('MMM d, yyyy');
@@ -123,7 +130,7 @@ class PdfInvoiceService {
           if (isFullyPaid)
             pw.Positioned(
               right: 50,
-              top: 150,
+              top: 350,
               child: pw.Transform.rotate(
                 angle: -0.5,
                 child: pw.Text(
